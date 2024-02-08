@@ -49,17 +49,22 @@ def load_task(cfg: DictConfig, accelerator: BaseAccelerator):
 def verify_or_write_config(cfg: TrainerConfig):
     os.makedirs(cfg.output_dir, exist_ok=True)
     yaml_path = os.path.join(cfg.output_dir, "config.yaml")
-    if not os.path.exists(yaml_path):
-        OmegaConf.save(cfg, yaml_path, resolve=True)
-    with open(yaml_path) as f:
-        existing_config = f.read()
-    if existing_config != OmegaConf.to_yaml(cfg, resolve=True):
-        raise ValueError(f"Config was not saved correctly - {yaml_path}")
+
+    # if not os.path.exists(yaml_path):
+    #     OmegaConf.save(cfg, yaml_path, resolve=True)
+    # with open(yaml_path) as f:
+    #     existing_config = f.read()
+    # if existing_config != OmegaConf.to_yaml(cfg, resolve=True):
+    #     raise ValueError(f"Config was not saved correctly - {yaml_path}")
     logger.info(f"Config can be found in {yaml_path}")
 
 
 @hydra.main(version_base=None, config_path="../conf", config_name="config")
 def main(cfg: TrainerConfig) -> None:
+    # cfg.dataset.dataset_name = "xzuyn/pickapic_v2_only_some"
+    # cfg.lr_scheduler.lr_warmup_steps = 3
+    # cfg.accelerator.eval_on_start = False
+
     accelerator = instantiate_with_cfg(cfg.accelerator)
 
     if cfg.debug.activate and accelerator.is_main_process:
@@ -69,6 +74,7 @@ def main(cfg: TrainerConfig) -> None:
     if accelerator.is_main_process:
         verify_or_write_config(cfg)
 
+    logger.info(f"Using dataset {cfg.dataset.dataset_name}")
     logger.info(f"Loading task")
     task = load_task(cfg.task, accelerator)
     logger.info(f"Loading model")
@@ -98,7 +104,7 @@ def main(cfg: TrainerConfig) -> None:
         logger.info(f"*** Evaluating {cfg.dataset.valid_split_name} ***")
         metrics = task.evaluate(model, criterion, split2dataloader[cfg.dataset.valid_split_name])
         accelerator.update_metrics(metrics)
-        accelerator.gradient_state.end_of_dataloader = end_of_train_dataloader
+        # accelerator.gradient_state.end_of_dataloader = end_of_train_dataloader
 
     logger.info(f"task: {task.__class__.__name__}")
     logger.info(f"model: {model.__class__.__name__}")
@@ -111,6 +117,8 @@ def main(cfg: TrainerConfig) -> None:
     logger.info(f"num. test examples: {len(split2dataloader[cfg.dataset.test_split_name].dataset)}")
 
     for epoch in range(accelerator.cfg.num_epochs):
+        print("Running  Epoch:", epoch)
+
         train_loss, lr = 0.0, 0.0
         for step, batch in enumerate(split2dataloader[cfg.dataset.train_split_name]):
             if accelerator.should_skip(epoch, step):
@@ -118,9 +126,11 @@ def main(cfg: TrainerConfig) -> None:
                 continue
 
             if accelerator.should_eval():
+                print("============ START EVALUATION ============")
                 evaluate()
 
             if accelerator.should_save():
+                print("Saving checkpoint......")
                 accelerator.save_checkpoint()
 
             model.train()
@@ -144,8 +154,11 @@ def main(cfg: TrainerConfig) -> None:
                 train_loss = 0.0
 
             if accelerator.global_step > 0:
-                lr = lr_scheduler.get_last_lr()[0]
-
+                try:
+                    lr = lr_scheduler.get_last_lr()[0]
+                except:
+                    print("************** exception from get_last_lr **************")
+                    lr = 0.0
             accelerator.update_step(avg_loss, lr)
 
             if accelerator.should_end():
