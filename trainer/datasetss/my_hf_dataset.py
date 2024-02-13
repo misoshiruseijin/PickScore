@@ -26,14 +26,15 @@ class ProcessorConfig:
 
 @dataclass
 class MyHFDatasetConfig(BaseDatasetConfig):
-    _target_: str = "trainer.datasetss.clip_hf_dataset.CLIPHFDataset"
+    _target_: str = "trainer.datasetss.my_hf_dataset.MyHFDataset"
     dataset_name: str = "my_dataset"
+    dataset_loc: str = "/home/hayano/rl4dgm/my_dataset/my_dataset"
     dataset_config_name: str = "null"
 
     from_disk: bool = False
     train_split_name: str = "train"
-    valid_split_name: str = "validation_unique"
-    test_split_name: str = "test_unique"
+    valid_split_name: str = "validation"
+    test_split_name: str = "test"
     cache_dir: Optional[str] = None
 
     caption_column_name: str = "caption"
@@ -61,9 +62,9 @@ class MyHFDatasetConfig(BaseDatasetConfig):
     only_on_best: bool = False
 
 
-class CLIPHFDataset(BaseDataset):
+class MyHFDataset(BaseDataset):
 
-    def __init__(self, cfg: CLIPHFDatasetConfig, split: str = "train"):
+    def __init__(self, cfg: MyHFDatasetConfig, split: str = "train"):
         self.cfg = cfg
         self.split = split
         logger.info(f"Loading {self.split} dataset")
@@ -134,13 +135,16 @@ class CLIPHFDataset(BaseDataset):
         self.image_processor = processor.image_processor
 
     def load_hf_dataset(self, split: str) -> Dataset:
+        datafile = f"{self.cfg.dataset_loc}_{split}.parquet"
+        # print("\n\ndatafile: ", datafile)
         dataset = load_dataset(
             "parquet",
-            data_files={"train" : f"{cfg_dataset_name}_{split}.parquet"}
+            data_files={f"{split}" : datafile},
             cache_dir=self.cfg.cache_dir,
-            split=split,
+            # split=split,
         )
-        print(f"\n\n{dataset}\n\n")
+        dataset = dataset[split]
+        # print("\n\nLOADED DATASET\n", dataset)
         return dataset
 
     def tokenize(self, example):

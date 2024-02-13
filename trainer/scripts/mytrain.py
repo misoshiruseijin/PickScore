@@ -19,7 +19,9 @@ os.environ["TOKENIZERS_PARALLELISM"] = "false"
 def load_dataloaders(cfg: DictConfig) -> Any:
     dataloaders = {}
     for split in [cfg.train_split_name, cfg.valid_split_name, cfg.test_split_name]:
+        # print("\n\nsplit: ", split)
         dataset = instantiate_with_cfg(cfg, split=split)
+        # print("\n\ndataset (mytrain.load_dataloaders)", dataset)
         should_shuffle = split == cfg.train_split_name
         dataloaders[split] = torch.utils.data.DataLoader(
             dataset,
@@ -60,10 +62,9 @@ def verify_or_write_config(cfg: TrainerConfig):
 
 @hydra.main(version_base=None, config_path="../conf", config_name="config")
 def main(cfg: TrainerConfig) -> None:
-    # print("Type", type(cfg))
     print("-"*50)
-    print("Config", cfg.keys())
-    cfg.dataset.dataset_name = "xzuyn/pickapic_v2_only_some"
+    print("Config", cfg)
+    print("\n\n", cfg.dataset.dataset_name)
     print("-"*50)
     
     # import datasets
@@ -122,6 +123,7 @@ def main(cfg: TrainerConfig) -> None:
     logger.info(f"num. test examples: {len(split2dataloader[cfg.dataset.test_split_name].dataset)}")
 
     for epoch in range(accelerator.cfg.num_epochs):
+        print("Epoch ", epoch)
         train_loss, lr = 0.0, 0.0
         for step, batch in enumerate(split2dataloader[cfg.dataset.train_split_name]):
             if accelerator.should_skip(epoch, step):
@@ -155,8 +157,11 @@ def main(cfg: TrainerConfig) -> None:
                 train_loss = 0.0
 
             if accelerator.global_step > 0:
-                lr = lr_scheduler.get_last_lr()[0]
-
+                try:
+                    lr = lr_scheduler.get_last_lr()[0]
+                except:
+                    print("get_last_lr exception. Setting lr=0.0")
+                    lr = 0.0
             accelerator.update_step(avg_loss, lr)
 
             if accelerator.should_end():

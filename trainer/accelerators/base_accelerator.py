@@ -66,7 +66,7 @@ class BaseAcceleratorConfig:
     metric_name: str = "accuracy"
     metric_mode: MetricMode = MetricMode.MAX
     limit_num_checkpoints: int = 1
-    save_only_if_best: bool = True
+    save_only_if_best: bool = False
     dynamo_backend: DynamoBackend = DynamoBackend.NO
     keep_best_ckpts: bool = True
 
