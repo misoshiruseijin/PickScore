@@ -28,7 +28,7 @@ class ProcessorConfig:
 class MyHFDatasetConfig(BaseDatasetConfig):
     _target_: str = "trainer.datasetss.my_hf_dataset.MyHFDataset"
     dataset_name: str = "my_dataset"
-    dataset_loc: str = "/home/hayano/rl4dgm/my_dataset/my_dataset"
+    dataset_loc: str = "/home/hayano/rl4dgm/rl4dgm/my_dataset/my_dataset"
     dataset_config_name: str = "null"
 
     from_disk: bool = False
@@ -136,12 +136,10 @@ class MyHFDataset(BaseDataset):
 
     def load_hf_dataset(self, split: str) -> Dataset:
         datafile = f"{self.cfg.dataset_loc}_{split}.parquet"
-        # print("\n\ndatafile: ", datafile)
         dataset = load_dataset(
             "parquet",
             data_files={f"{split}" : datafile},
             cache_dir=self.cfg.cache_dir,
-            # split=split,
         )
         dataset = dataset[split]
         # print("\n\nLOADED DATASET\n", dataset)
